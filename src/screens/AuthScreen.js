@@ -5,6 +5,7 @@ import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import Watermark from "../components/Watermark";
 import HexagonBackground from "../components/HexagonBackground";
+import { supabase } from "../lib/supabase";
 
 const AUTH_MESSAGE = "Seu Laboratório Online de Cibersegurança";
 
@@ -16,7 +17,33 @@ const AuthScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [typedText, setTypedText] = useState("");
   const [appIsReady, setAppIsReady] = useState(false);
+  const [dbStatus, setDbStatus] = useState("Conectando...");
 
+  // 🔒 Verificação segura do Supabase
+  useEffect(() => {
+    async function checkDatabase() {
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id")
+          .limit(1);
+
+        if (error) {
+          console.log("❌ Erro Supabase:", error.message);
+          setDbStatus("Erro ao conectar");
+        } else {
+          setDbStatus("Conectado ✔");
+        }
+      } catch (err) {
+        console.log("❌ Erro geral:", err.message);
+        setDbStatus("Erro ao conectar");
+      }
+    }
+
+    checkDatabase();
+  }, []);
+
+  // ⏳ Carregamento de fontes
   useEffect(() => {
     async function prepare() {
       try {
@@ -24,6 +51,7 @@ const AuthScreen = ({ navigation }) => {
           "VT323-Regular": require("../assets/fonts/VT323-Regular.ttf"),
           "SpaceGrotesk-Bold": require("../assets/fonts/SpaceGrotesk-Bold.ttf"),
         });
+
         await new Promise((resolve) => setTimeout(resolve, 200));
       } catch (e) {
         console.warn(e);
@@ -31,29 +59,30 @@ const AuthScreen = ({ navigation }) => {
         setAppIsReady(true);
       }
     }
+
     prepare();
   }, []);
 
+  // 🟢 Efeito da animação “digitando”
   useEffect(() => {
-    if (appIsReady) {
-      SplashScreen.hideAsync();
-      let index = 0;
-      const type = () => {
-        if (index <= AUTH_MESSAGE.length) {
-          setTypedText(AUTH_MESSAGE.substring(0, index));
-          index++;
-          setTimeout(type, 80);
-        }
-      };
-      type();
-    }
+    if (!appIsReady) return;
+
+    SplashScreen.hideAsync();
+
+    let index = 0;
+    const type = () => {
+      if (index <= AUTH_MESSAGE.length) {
+        setTypedText(AUTH_MESSAGE.substring(0, index));
+        index++;
+        setTimeout(type, 80);
+      }
+    };
+
+    type();
   }, [appIsReady]);
 
-  const handleLogin = () => {
-    console.log("Login pressed");
-    navigation.navigate("Login");
-  }
-  const handleRegister = () => console.log("Register pressed");
+  const handleLogin = () => navigation.navigate("Login");
+  const handleRegister = () => navigation.navigate("Register");
 
   if (!appIsReady) return null;
 
@@ -86,7 +115,8 @@ const AuthScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.dbStatus}>Sem Conexão</Text>
+        {/* STATUS DO SUPABASE */}
+        <Text style={styles.dbStatus}>{dbStatus}</Text>
       </View>
     </View>
   );
@@ -134,21 +164,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 25,
     lineHeight: 22,
-    flexShrink: 1,
     maxWidth: "90%",
-    alignSelf: "center",
   },
   dbStatus: {
     color: "#555",
     position: "absolute",
     bottom: 80,
-    zIndex: 2,
     fontFamily: "VT323-Regular",
   },
   buttonContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
     width: "100%",
+    justifyContent: "space-around",
     marginBottom: 20,
   },
   loginButton: {
