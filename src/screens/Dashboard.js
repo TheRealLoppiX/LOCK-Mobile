@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A0A12",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: "#000",
     zIndex: 10,
   },

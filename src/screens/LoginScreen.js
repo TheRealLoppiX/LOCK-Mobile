@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useRef } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { 
   View, 
   Text, 
@@ -6,21 +6,26 @@ import {
   StatusBar, 
   TextInput,
   Pressable,
-  Animated,
-  Keyboard
+  Keyboard,
+  Alert
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Watermark from "../components/Watermark";
 import HexagonBackground from "../components/HexagonBackground";
+// Importe o hook de sessão corretamente
+import { useSession } from "../hooks/useSession"; 
 
 const MemoizedHexagonBackground = memo(HexagonBackground);
 
+// DICA: Mova isso para um arquivo de configuração (ex: src/config.js)
 const API_URL = "https://lock-api-w4ia.onrender.com";
 
 const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  
+  // Hook de sessão para gerenciar o login
+  const { signIn } = useSession(); 
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,8 +39,8 @@ const LoginScreen = ({ navigation }) => {
   // 🔐 LOGIN VIA BACKEND
   // --------------------------
   const handleLogin = async () => {
-    if (!email || !password) {
-      alert("Preencha todos os campos.");
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Erro", "Preencha todos os campos.");
       return;
     }
 
@@ -56,45 +61,43 @@ const LoginScreen = ({ navigation }) => {
 
       if (!res.ok) {
         console.log("❌ Erro login:", data.message);
-        alert(data.message || "Erro ao fazer login.");
+        Alert.alert("Falha no Login", data.message || "Verifique suas credenciais.");
         return;
       }
 
-      // Armazena token
-      await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      // SUCESSO: Chama o hook de sessão
+      // O hook vai salvar o token e atualizar o estado global
+      // Isso fará o AppNavigation redirecionar AUTOMATICAMENTE para a Dashboard
+      await signIn(data.user, data.token);
 
       console.log("Login bem-sucedido:", data.user.email);
 
-      navigation.replace("Dashboard");
-
     } catch (err) {
       console.log("❌ Erro inesperado:", err);
-      alert("Erro inesperado ao tentar entrar.");
+      Alert.alert("Erro de Conexão", "Não foi possível conectar ao servidor. Verifique sua internet.");
     } finally {
       setIsLoading(false);
     }
   };
 
   // --------------------------
-  // 🛠 TESTAR CONEXÃO
+  // 🛠 TESTAR CONEXÃO (Opcional, mas útil para debug)
   // --------------------------
   useEffect(() => {
-    async function testConnection() {
+    const testConnection = async () => {
       try {
         const res = await fetch(`${API_URL}/ping`);
         console.log(res.ok ? "✅ Backend conectado!" : "❌ Backend não respondeu");
       } catch (e) {
         console.log("❌ Erro ao conectar backend:", e);
       }
-    }
-
+    };
     testConnection();
   }, []);
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A12" />
       <MemoizedHexagonBackground />
       <Watermark />
 
@@ -118,7 +121,7 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.title}>ENTRAR</Text>
 
           {/* EMAIL */}
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, emailFocused && styles.inputContainerFocused]}>
             <Ionicons 
               name="mail-outline" 
               size={20} 
@@ -126,19 +129,20 @@ const LoginScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <TextInput
-              style={[styles.input, emailFocused && styles.inputFocused]}
+              style={styles.input}
               placeholder="Seu email ou nome"
-              placeholderTextColor="#888"
+              placeholderTextColor="#666"
               value={email}
               onChangeText={setEmail}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
               autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
 
           {/* SENHA */}
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, passwordFocused && styles.inputContainerFocused]}>
             <Ionicons 
               name="lock-closed-outline" 
               size={20} 
@@ -146,9 +150,9 @@ const LoginScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <TextInput
-              style={[styles.input, passwordFocused && styles.inputFocused]}
+              style={styles.input}
               placeholder="Sua senha"
-              placeholderTextColor="#888"
+              placeholderTextColor="#666"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
@@ -191,12 +195,7 @@ const LoginScreen = ({ navigation }) => {
           >
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loginButtonText}>Entrando</Text>
-                <View style={styles.loadingDots}>
-                  <Text style={styles.loadingDot}>.</Text>
-                  <Text style={styles.loadingDot}>.</Text>
-                  <Text style={styles.loadingDot}>.</Text>
-                </View>
+                <Text style={styles.loginButtonText}>Entrando...</Text>
               </View>
             ) : (
               <Text style={styles.loginButtonText}>Entrar</Text>
@@ -223,7 +222,7 @@ const LoginScreen = ({ navigation }) => {
 };
 
 // ---------------------------------------
-// 🔵 STYLES (100% o seu, intacto)
+// 🔵 STYLES
 // ---------------------------------------
 const styles = StyleSheet.create({
   safeArea: {
@@ -278,11 +277,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2a2a40",
     paddingHorizontal: 15,
+    height: 55,
+  },
+  inputContainerFocused: {
+    borderColor: "#00E0FF",
+    shadowColor: "#00E0FF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
   },
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
-    height: 55,
+    height: "100%",
     color: "#FFFFFF",
     fontFamily: "SpaceGrotesk-Bold",
     fontSize: 16,
@@ -305,6 +313,11 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     width: "100%",
     alignItems: "center",
+    shadowColor: "#00E0FF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
   loginButtonPressed: {
     backgroundColor: "rgba(0, 224, 255, 0.8)",
@@ -313,22 +326,12 @@ const styles = StyleSheet.create({
   loginButtonLoading: { opacity: 0.7 },
   loginButtonText: {
     color: "#0A0A12",
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "SpaceGrotesk-Bold",
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  loadingDots: {
-    flexDirection: "row",
-    marginLeft: 5,
-  },
-  loadingDot: {
-    color: "#0A0A12",
-    fontSize: 16,
-    fontFamily: "SpaceGrotesk-Bold",
-    marginLeft: 2,
   },
   registerLink: { marginTop: 30, padding: 8 },
   registerLinkText: { color: "#FFFFFF", fontFamily: "VT323-Regular", fontSize: 16 },

@@ -1,11 +1,13 @@
 import React, { useEffect, useState, memo } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, StatusBar } from "react-native";
+import { View, Text, Image, TouchableOpacity, StatusBar } from "react-native";
+import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import Watermark from "../components/Watermark";
 import HexagonBackground from "../components/HexagonBackground";
 import { supabase } from "../lib/supabase";
+import { useSession } from "../hooks/useSession";
 
 const AUTH_MESSAGE = "Seu Laboratório Online de Cibersegurança";
 
@@ -18,8 +20,6 @@ const AuthScreen = ({ navigation }) => {
   const [typedText, setTypedText] = useState("");
   const [appIsReady, setAppIsReady] = useState(false);
   const [dbStatus, setDbStatus] = useState("Conectando...");
-
-  // 🔒 Verificação segura do Supabase
   useEffect(() => {
     async function checkDatabase() {
       try {
@@ -42,8 +42,6 @@ const AuthScreen = ({ navigation }) => {
 
     checkDatabase();
   }, []);
-
-  // ⏳ Carregamento de fontes
   useEffect(() => {
     async function prepare() {
       try {
@@ -63,7 +61,6 @@ const AuthScreen = ({ navigation }) => {
     prepare();
   }, []);
 
-  // 🟢 Efeito da animação “digitando”
   useEffect(() => {
     if (!appIsReady) return;
 

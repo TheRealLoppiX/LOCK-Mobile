@@ -1,11 +1,17 @@
 import React from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
-import AuthScreen from './src/screens/AuthScreen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigation from './src/navigation/AppNavigation';
+import { SessionProvider } from './src/hooks/useSession';
 
 export default function App() {
-  return <AppNavigation/>;
+  return (
+    <SafeAreaProvider>
+      <SessionProvider>
+        <AppNavigation />
+      </SessionProvider>
+    </SafeAreaProvider>
+  );
 }
 
 const styles = StyleSheet.create({
